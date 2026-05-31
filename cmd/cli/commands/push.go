@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/docker/model-runner/cmd/cli/commands/completion"
 	"github.com/docker/model-runner/cmd/cli/desktop"
+	"github.com/docker/model-runner/cmd/cli/pkg/standalone"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,16 @@ func newPushCmd() *cobra.Command {
 
 func pushModel(cmd *cobra.Command, desktopClient *desktop.Client, model string) error {
 	printer := asPrinter(cmd)
+
+	if dockerCLI != nil && modelRunner != nil {
+		dockerClientAPI, err := desktop.DockerClientForContext(dockerCLI, dockerCLI.CurrentContext())
+		if err == nil {
+			if containerID, _, _, err := standalone.FindControllerContainer(cmd.Context(), dockerClientAPI); err == nil && containerID != "" {
+				_ = standalone.CopyDockerConfigToContainer(cmd.Context(), dockerClientAPI, containerID, modelRunner.EngineKind())
+			}
+		}
+	}
+
 	response, _, err := desktopClient.Push(model, printer)
 
 	if err != nil {
